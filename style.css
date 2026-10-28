@@ -128,3 +128,12 @@ textarea {
   text-align: center;
   border-style: dashed;
 }
+
+.delete-btn {
+  margin-top: 8px;
+  background-color: #b91c1c;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #991b1b;
+}

@@ -11,6 +11,7 @@ const submitBtn = document.querySelector("#submit-btn");
 const MAX_TITLE_LENGTH = 100;
 
 let notes = [];
+let busy = false;
 
 // Show a message in the status line. type is "loading", "success" or "error".
 function setStatus(message, type) {
@@ -20,8 +21,12 @@ function setStatus(message, type) {
 
 // Disable the buttons while a request is running so it cannot be sent twice.
 function setBusy(isBusy) {
+  busy = isBusy;
   loadBtn.disabled = isBusy;
   submitBtn.disabled = isBusy;
+  document.querySelectorAll(".delete-btn").forEach(function (button) {
+    button.disabled = isBusy;
+  });
 }
 
 // One reusable function for every call. It checks response.ok and throws on errors.
@@ -59,7 +64,16 @@ function renderNotes() {
     const body = document.createElement("p");
     body.textContent = note.body;
 
-    item.append(title, body);
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "delete-btn";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.disabled = busy;
+    deleteBtn.addEventListener("click", function () {
+      deleteNote(note.id);
+    });
+
+    item.append(title, body, deleteBtn);
     notesList.appendChild(item);
   });
 }
@@ -123,6 +137,31 @@ async function createNote(event) {
     noteForm.reset();
   } catch (error) {
     setStatus("Sorry, the note could not be saved. " + error.message, "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+// DELETE: remove one note.
+//
+// JSONPlaceholder is a practice API. It accepts POST and DELETE and answers as if they worked,
+// but it never really stores anything. A note created here (id 101) does not exist on the server,
+// so loading the list again will not show it, and the server cannot truly delete it either.
+// To keep the screen sensible, a note is removed from the list only after the server
+// answers with success, and any failure is shown in the status line instead.
+async function deleteNote(id) {
+  setStatus("Deleting note " + id + "...", "loading");
+  setBusy(true);
+
+  try {
+    const result = await request(API_URL + "/" + id, { method: "DELETE" });
+    notes = notes.filter(function (note) {
+      return note.id !== id;
+    });
+    renderNotes();
+    setStatus("Note " + id + " deleted (status " + result.status + ").", "success");
+  } catch (error) {
+    setStatus("Sorry, note " + id + " could not be deleted. " + error.message, "error");
   } finally {
     setBusy(false);
   }
