@@ -3,6 +3,12 @@ const API_URL = "https://jsonplaceholder.typicode.com/posts";
 const loadBtn = document.querySelector("#load-btn");
 const statusEl = document.querySelector("#status");
 const notesList = document.querySelector("#notes-list");
+const noteForm = document.querySelector("#note-form");
+const titleInput = document.querySelector("#title-input");
+const bodyInput = document.querySelector("#body-input");
+const submitBtn = document.querySelector("#submit-btn");
+
+const MAX_TITLE_LENGTH = 100;
 
 let notes = [];
 
@@ -15,6 +21,7 @@ function setStatus(message, type) {
 // Disable the buttons while a request is running so it cannot be sent twice.
 function setBusy(isBusy) {
   loadBtn.disabled = isBusy;
+  submitBtn.disabled = isBusy;
 }
 
 // One reusable function for every call. It checks response.ok and throws on errors.
@@ -74,4 +81,52 @@ async function loadNotes() {
   }
 }
 
+// Check the form. Returns an error message, or an empty string when the input is fine.
+function validateTitle(title) {
+  if (title === "") {
+    return "Please enter a title for your note.";
+  }
+  if (title.length > MAX_TITLE_LENGTH) {
+    return "The title is too long (" + title.length + " characters). The limit is " + MAX_TITLE_LENGTH + ".";
+  }
+  return "";
+}
+
+// POST: create a note.
+async function createNote(event) {
+  event.preventDefault();
+
+  const title = titleInput.value.trim();
+  const body = bodyInput.value.trim();
+
+  const problem = validateTitle(title);
+  if (problem) {
+    setStatus(problem, "error");
+    titleInput.focus();
+    return;
+  }
+
+  setStatus("Saving your note...", "loading");
+  setBusy(true);
+
+  try {
+    const result = await request(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: title, body: body, userId: 1 })
+    });
+
+    // Put the new note at the top of the list.
+    notes.unshift(result.data);
+    renderNotes();
+    setStatus("Note created (status " + result.status + ", id " + result.data.id + ").", "success");
+    noteForm.reset();
+  } catch (error) {
+    setStatus("Sorry, the note could not be saved. " + error.message, "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
 loadBtn.addEventListener("click", loadNotes);
+noteForm.addEventListener("submit", createNote);
